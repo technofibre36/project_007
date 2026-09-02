@@ -1,0 +1,27 @@
+services:
+  # 1. Parallel Scraper Microservice (FastAPI + Python 3.11)
+  - type: web
+    name: scriptsight-scraper
+    runtime: python
+    rootDir: scraper_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PARALLEL_API_KEY
+        sync: false
+
+  # 2. ScriptSight Backend API (Node.js Express + Google GenAI)
+  - type: web
+    name: scriptsight-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SCRAPER_SERVICE_URL
+        fromService:
+          type: web
+          name: scriptsight-scraper
+          property: host

@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  scraper:
+    build:
+      context: ./scraper_service
+      dockerfile: Dockerfile
+    container_name: scriptsight-scraper
+    ports:
+      - "8000:8000"
+    environment:
+      - PARALLEL_API_KEY=${PARALLEL_API_KEY:-}
+      - PORT=8000
+    restart: unless-stopped
+    networks:
+      - scriptsight-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scriptsight-backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      scraper:
+        condition: service_healthy
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SCRAPER_SERVICE_URL=http://scraper:8000
+      - PORT=5000
+    restart: unless-stopped
+    networks:
+      - scriptsight-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scriptsight-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    restart: unless-stopped
+    networks:
+      - scriptsight-network
+
+networks:
+  scriptsight-network:
+    driver: bridge
